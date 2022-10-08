@@ -1,7 +1,7 @@
 FROM golang:1.18
 
 # Set the Current Working Directory inside the container
-WORKDIR $GOPATH/src/github.com/burakkuru5534/movie-api-case
+WORKDIR $GOPATH/src/github.com/burakkuru5534/url-shortening-service
 
 # Copy everything from the current directory to the PWD (Present Working Directory) inside the container
 COPY . .
@@ -16,4 +16,4 @@ RUN go install -v ./...
 EXPOSE 8080
 
 # Run the executable
-CMD ["movie-api-case"]
+CMD ["url-shortening-service"]

@@ -2,20 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment                 # Type of Kubernetes resource
 metadata:
-  name: movie-api-case           # Name of the Kubernetes resource
+  name: url-shortening-service          # Name of the Kubernetes resource
 spec:
   replicas: 3                    # Number of pods to run at any given time
   selector:
     matchLabels:
-      app: movie-api-case        # This deployment applies to any Pods matching the specified label
+      app: url-shortening-service        # This deployment applies to any Pods matching the specified label
   template: # This deployment will create a set of pods using the configurations in this template
     metadata:
       labels: # The labels that will be applied to all of the pods in this deployment
-        app: movie-api-case
+        app: url-shortening-service
     spec: # Spec for the container which will run in the Pod
       containers:
-        - name: movie-api-case
-          image: burakkuru5534/movie-api-case:1.0.0
+        - name: url-shortening-service
+          image: burakkuru5534/url-shortening-service:1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080  # Should match the port number that the Go application listens on
@@ -38,7 +38,7 @@ spec:
 apiVersion: v1
 kind: Service                    # Type of kubernetes resource
 metadata:
-  name: movie-api-case-service   # Name of the resource
+  name: url-shortening-service-service   # Name of the resource
 spec:
   type: NodePort                 # A port is opened on each node in your cluster via Kube proxy.
   ports:                         # Take incoming HTTP requests on port 9090 and forward them to the targetPort of 8080
@@ -46,6 +46,6 @@ spec:
       port: 9090
       targetPort: 8080
   selector:
-    app: movie-api-case        # Map any pod with label `app=movie-api-case` to this service
+    app: url-shortening-service        # Map any pod with label `app=url-shortening-service` to this service
 
 
