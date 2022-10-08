@@ -41,7 +41,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	loginResult := helper.CheckPass(*loginData.UpassFromDb, loginInfo.Password)
 	if !loginResult {
 		log.Println(messages.UserLoginWrongPasswordErrorMessage, err)
-		http.Error(w, messages.UserLoginWrongPasswordErrorMessage, http.StatusBadRequest)
+		http.Error(w, messages.UserLoginWrongPasswordErrorMessage, http.StatusUnauthorized)
 		return
 	}
 

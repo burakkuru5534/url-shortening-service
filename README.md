@@ -1,11 +1,13 @@
-# Movie API Service
+# Url Shortening Service
+[]: # Author: [Burak Kuru](
 
 ## Introduction
 
-In this project, we will be building a movie api service.
-There will be a register and login api for users to register and login.
-There will be a api for users to list movies. Users could reach this api without registration and authentication.
-There will be apis for users to create,update, delete and get movies.
+In this project, we will build a URL shortening service. The service will take a long URL and return a short URL. When the short URL is visited, the service will redirect the user to the long URL.
+Usr must register and login before using the service. There will be two types of usrs: free and premium. Free usrs can shorten up to 1 URLs, while premium usrs can shorten 10  of URLs. 
+Usrs can also delete their URLs.
+Usrs can also list their active shortened urls.
+The service will be implemented using the following technologies:
 
 ### Languages and frameworks
 
@@ -16,40 +18,55 @@ postgresql
 docker
 kubernetes
 
-Test Environments:
-
-postman,
-golang testing library
 
 ### Database
 
-Postgresql was used as the database language.
+Postgresql 
 
 Tables created:
 
 ```
-table name:sysusr
+table name:usr
 columns:
 id: serial primary key
-code: text
-upass: text
-is_active: boolean
-full_name: text
-email: text (unique)
+password: text not null
+email: text not null unique
+shortening_url_limit: bigint
+account_type: text (could be free or premium)
+is_active: bool defult true
+zlins_dttm: timestamp default now()
+zlupd_dttm: timestamp
 
-table name:movie
+
+table name:url
 columns:
 id: serial primary key
-name: text (unique)
-description: text
-type: text
+long_version: text not null
+shortened_version: text not null
+usr_id: bigint fk to usr.id
+zlins_dttm: timestamp default now()
+zlupd_dttm: timestamp
+constraint: unique (long_version, usr_id)
+constraint: unique (shortened_version, usr_id)
+
+table name: log_jwt
+
+id: serial primary key
+dttm: timestamp default now()
+usr_id: bigint fk to usr.id
+jwt: text not null
+expires_on: timestamp not null
+is_invalid: bool default false
+
+
 ```
 
 ## Problem solution
 
-We should be able to create, read, update, and delete movies with jwt authentication.
-We should be able to list movies without authentication.
-We should prevent movies from creating duplicate names.
+● Create Shortened URL: takes the original URL and returns a shortened URL
+● Return Active Shortened URLs: returns url ids, active shortened URLs, original URLs
+● Delete Shortened URL: takes URL id and returns generic success/error message
+● Redirect: takes a shortened URL and returns the original URL
 
 ### Register
 
@@ -64,11 +81,9 @@ request Body Example:
 
  ```json
 {
-  "FirstName":"Burak",
-  "MiddleName":"",
-  "LastName":"Kuru",
-  "Email":"brkkr5534@gmail.com",
-  "Password":"Test123456"
+  "email":"testuser@gmail.com",
+  "password":"Test123456",
+  "IsPremium":true
 }
  ```
 
@@ -77,7 +92,7 @@ response example:
 for 200:
 
  ```
-User Burak.Kuru created:
+{"success":true,"message":"user created successfully","data":"Usr testuser@gmail.com created:"}
  ```
 
 for 400:
@@ -97,24 +112,21 @@ for 500:
 ```
 
 
+### Login
 
-### Create Movie
 
-Create movie request url example:
+Login request url example:
 
 Method: POST
 
-Note: this api for authenticated users only.
-
-http://localhost:8080/api/movie
+http://localhost:8080/api/login
 
 request Body Example:
 
  ```json
 {
-  "name": "The Godfather",
-  "description": "description",
-  "typ": "mafia"
+  "email":"testuser@gmail.com",
+  "password":"Test123456"
 }
  ```
 
@@ -122,13 +134,8 @@ response example:
 
 for 200:
 
- ```json
-{
-  "id": 1,
-  "name": "The Godfather",
-  "description": "description",
-  "typ": "mafia"
-}
+ ```
+{"success":true,"message":"user login successfully","data":{"UserID":8,"UserEmail":"testuser@gmail.com","AccessToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2NjUyMTk5NjksInVzZXJFbWFpbCI6InRlc3R1c2VyQGdtYWlsLmNvbSIsInVzZXJJRCI6OH0.K5qmO9M5Znq-tVIauxHPEHlDZa3_gbQgr7FF4Y6fwNA"}}
  ```
 
 for 400:
@@ -138,13 +145,8 @@ for 400:
 ```
 
 for 401:
-```
-no token found
-```
-
-for 403:
 ```json
-{"error": "movie with that name already exists"}
+{"error": "wrong password"}
 ```
 
 for 500:
@@ -152,17 +154,67 @@ for 500:
 {"error": "server error"}
 ```
 
-### Get Movie
 
-Get movie request url example:
+### Create Shortened Url
+
+Create shortened url request url example:
+
+Method: POST
+
+Note: this api for authenticated users only.
+
+http://localhost:8080/api/url
+
+request Body Example:
+
+ ```json
+{
+  "LongVersion":"www.facebook.com"
+
+}
+ ```
+
+response example:
+
+for 200:
+
+ ```json
+{"success":true,"message":"url created successfully","data":"5waxJgD7"}
+ ```
+
+for 400:
+
+```json
+{"error": "Bad request"}
+```
+```
+
+for 401:
+```
+no token found
+```
+
+for 403:
+```json
+{"error": "url with that name already exists"}
+```
+
+for 500:
+```json
+{"error": "server error"}
+```
+
+### Return Active Shortened Urls
+
+Return Active Shortened Urls request url example:
 
 Method: GET
 
 Note: this api for authenticated users only.
 
-http://localhost:8080/api/movie?id=1
+http://localhost:8080/api/urls
 
-id: this id should be one of the movie's ids.
+
 
 request Body:
 
@@ -170,12 +222,7 @@ response example:
 
 for 200:
  ```json
-{
-  "id": 1,
-  "name": "The Godfather",
-  "description": "description",
-  "typ": "mafia"
-}
+{"success":true,"message":"url list successfully","data":[{"ID":12,"LongVersion":"www.google.com","ShortenedVersion":"b2Abvk5G","UsrID":5}]}
  ```
 
 for 400:
@@ -189,67 +236,10 @@ for 401:
 no token found
 ```
 
-for 404:
-```json
-{"error": "movie with that id does not exist"}
-```
-
-for 500:
-```json
-{"error": "server error"}
-```
-
-### Update movie
-
-Update movie request url example:
-Method: PATCH
-
-Note: this api for authenticated users only.
-
-http://localhost:8080/api/movie?id=1
-
-id: this id should be one of the movie's ids.
-request Body Example:
-
- ```json
-{
-  "name":"UpdatedMovieName",
-  "description":"updatedDescription",
-  "typ":"updatedTyp"
-}
- ```
-
-response example:
-
-for 200:
- ```json
-{
-  "id": 1,
-  "name":"UpdatedMovieName",
-  "description":"updatedDescription",
-  "typ":"updatedTyp"
-}
- ```
-
-for 403:
-```json
-{"error": "movie with that name already exists"}
-```
-
-for 400:
-
-```json
-{"error": "Bad request"}
-```
-
+also 
 for 401:
 ```
-no token found
-```
-
-for 404:
-```json
-{"error": "movie with that id does not exist"}
+token is expired
 ```
 
 for 500:
@@ -257,20 +247,24 @@ for 500:
 {"error": "server error"}
 ```
 
-### Delete movie
+### Delete url
 
-Delete movie request url example:
+Delete url request url example:
 Method: DELETE
 
 Note: this api for authenticated users only.
 
-http://localhost:8080/api/movie?id=1
+http://localhost:8080/api/url?id=1
 
-id: this id should be one of the movie's ids.
+id: this id should be one of the url's ids.
 
 response example:
 
-for 200: "Movie deleted."
+for 200: 
+
+```json
+{"success":true,"message":"url deleted successfully","data":12}
+```
 
 
 for 400:
@@ -284,9 +278,15 @@ for 401:
 no token found
 ```
 
+also 
+for 401:
+```
+token is expired
+```
+
 for 404:
 ```json
-{"error": "movie with that id does not exist"}
+{"error": "url with that id does not exist"}
 ```
 
 for 500:
@@ -294,24 +294,18 @@ for 500:
 {"error": "server error"}
 ```
 
-### Movie List
+### Redirect 
 
-Movie List request url example:
+Redirect  request url example:
 Method: GET
-Note: This api is for all users.
 
-http://localhost:8080/api/movies
+http://localhost:8080/api/url?shortenedVersion=2iFdn9qF
 
 response example:
 
 for 200:
  ```json
-[{
-  "id": 1,
-  "name":"UpdatedMovieName",
-  "description":"updatedDescription",
-  "typ":"updatedTyp"
-}]
+{"success":true,"message":"get long url successfully","data":"www.facebook.com"}
  ```
 for 400:
 
@@ -319,29 +313,33 @@ for 400:
 {"error": "Bad request"}
 ```
 
+for 401:
+```
+no token found
+```
+
+also
+for 401:
+```
+token is expired
+```
+
+
 for 500:
 ```json
 {"error": "server error"}
 ```
 
-### Test
-
-I used postman and also golang testing libary to test these rest APIs
-
-you can run test by typing:
-
-go test -v
-
 ### Docker & kubernetes
 
 #$ go build
-#$ ./movie-api-case
+#$ ./url-shortening-service
 
 #create Dockerfile
-#$ docker build -t movie-api-case .
-#$ docker tag go-kubernetes burakkuru5534/movie-api-case:1.0.0
+#$ docker build -t url-shortening-service .
+#$ docker tag go-kubernetes burakkuru5534/url-shortening-service:1.0.0
 #$ docker login
-#$ docker push burakkuru5534/movie-api-case:1.0.0
+#$ docker push burakkuru5534/url-shortening-service:1.0.0
 
 #create kubernetes deployment file (.yml)
 #$ minikube start
@@ -350,9 +348,9 @@ go test -v
 #$ kubectl get deployments
 #$ kubectl get pods
 #We can use the kubectl port-forward command to map a local port to a port inside the pod like this:
-#$ kubectl port-forward movie-api-case-69b45499fb-7fh87 8080:8080
+#$ kubectl port-forward url-shortening-service-69b45499fb-7fh87 8080:8080
 
-#$ kubectl logs -f movie-api-case-69b45499fb-7fh87
+#$ kubectl logs -f url-shortening-service-69b45499fb-7fh87
 
 #create kubernetes service
 #kubectl apply -f k8s-deployment.yml (we can update this yml or create another yml file)
@@ -360,33 +358,31 @@ go test -v
 #$ kubectl get services
 
 #Type the following command to get the URL for the service in the minikube cluster:
-#$ minikube service movie-api-case-service --url
+#$ minikube service url-shortening-service-service --url
 
 #scale a kubernetes deployment
 
-#$ kubectl scale --replicas=4 deployment/movie-api-case
+#$ kubectl scale --replicas=4 deployment/url-shortening-service
 
 #delete a kubernetes deployment
 
-#$ kubectl delete deployment movie-api-case
+#$ kubectl delete deployment url-shortening-service
 
 #delete a kubernetes service
 
-#$ kubectl delete service movie-api-case-service
+#$ kubectl delete service url-shortening-service-service
 
 #delete a pod
 
-#$ kubectl delete pod movie-api-case-69b45499fb-7fh87
+#$ kubectl delete pod url-shortening-service-69b45499fb-7fh87
 
 ## Conclusion
 
-We have successfully implemented the movie api service.
+We have successfully implemented the url-shortening-service api service.
 Used log library to log errors.
 Used jwt library to authenticate users.
 Used postgresql as the database language.
-Used golang testing library to test the apis.
 Used postman to test the apis.
-Used golang testing library also to test the apis.
 Used docker to containerize the application.
 Used kubernetes to deploy the application.
 
