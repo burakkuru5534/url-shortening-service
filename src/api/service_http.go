@@ -45,8 +45,9 @@ func HttpService() http.Handler {
 			r.Use(ProjectAuthenticator)
 
 			r.Post("/url", UrlCreate)
-			r.Get("/url", UrlList)
-
+			r.Get("/urls", UrlList)
+			r.Delete("/url", UrlDelete)
+			r.Get("/url", UrlGet)
 		})
 	})
 

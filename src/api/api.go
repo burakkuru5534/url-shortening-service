@@ -5,6 +5,7 @@ import (
 	"github.com/Shyp/go-dberror"
 	"github.com/burakkuru5534/src/auth"
 	"github.com/burakkuru5534/src/helper"
+	"github.com/burakkuru5534/src/helper/messages"
 	"github.com/burakkuru5534/src/model"
 	_ "github.com/letsencrypt/boulder/db"
 	"net/http"
@@ -20,15 +21,15 @@ func UrlCreate(w http.ResponseWriter, r *http.Request) {
 
 	err := helper.UsrUrlLimitCheck(tc.UserID)
 	if err != nil {
-		log.Println("usr url limit check error ", err)
-		http.Error(w, "{\"error\": \"You reached to the limit.\"}", http.StatusBadRequest)
+		log.Println(messages.UsrLimitErrorMessage, err)
+		http.Error(w, messages.UsrLimitErrorMessage, http.StatusBadRequest)
 		return
 	}
 
 	err = helper.BodyToJsonReq(r, &Url)
 	if err != nil {
-		log.Println("Url create body to json error: ", err)
-		http.Error(w, "{\"error\": \"Bad request\"}", http.StatusBadRequest)
+		log.Println(messages.BodyParseErrorMessage, err)
+		http.Error(w, messages.BodyParseErrorMessage, http.StatusBadRequest)
 		return
 	}
 
@@ -38,24 +39,28 @@ func UrlCreate(w http.ResponseWriter, r *http.Request) {
 		switch e := dberr.(type) {
 		case *dberror.Error:
 			if e.Code == "23505" {
-				log.Println("Url already exist error: ", err)
-				http.Error(w, "{\"error\": \"Url with that name already exists\"}", http.StatusForbidden)
+				log.Println(messages.UrlAlreadyExistErrorMessage, err)
+				http.Error(w, messages.UrlAlreadyExistErrorMessage, http.StatusForbidden)
 				return
 			}
 		}
-		log.Println("Url create error: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.UrlCreateErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		return
 	}
 
-	respBody := struct {
-		ShortenedVersion string `json:"ShortenedVersion"`
-	}{
-
-		ShortenedVersion: Url.ShortenedVersion,
+	resp := model.RespData{
+		Success: messages.SuccessTrue,
+		Message: messages.UrlCreateSuccessMessage,
+		Data:    Url.ShortenedVersion,
 	}
 
-	json.NewEncoder(w).Encode(respBody)
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		log.Println(messages.ReturnRespErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -71,6 +76,74 @@ func UrlList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(Urls)
+	resp := model.RespData{
+		Success: messages.SuccessTrue,
+		Message: messages.UrlListSuccessMessage,
+		Data:    Urls,
+	}
 
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		log.Println(messages.ReturnRespErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func UrlDelete(w http.ResponseWriter, r *http.Request) {
+
+	var url model.Url
+	tc := auth.TokenClaimsFromRequest(r)
+
+	id := helper.StrToInt64(r.URL.Query().Get("id"))
+
+	err := url.Delete(tc.UserID, id)
+	if err != nil {
+		log.Println(messages.UrlDeleteErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
+
+	resp := model.RespData{
+		Success: messages.SuccessTrue,
+		Message: messages.UrlDeleteSuccessMessage,
+		Data:    id,
+	}
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		log.Println(messages.ReturnRespErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func UrlGet(w http.ResponseWriter, r *http.Request) {
+
+	var url model.Url
+	tc := auth.TokenClaimsFromRequest(r)
+
+	shortenedVersion := r.URL.Query().Get("shortenedVersion")
+
+	longVersion, err := url.GetLongUrlFromShortened(tc.UserID, shortenedVersion)
+	if err != nil {
+		log.Println(messages.GetLongUrlErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
+
+	resp := model.RespData{
+		Success: messages.SuccessTrue,
+		Message: messages.GetLongUrlSuccessMessage,
+		Data:    longVersion,
+	}
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		log.Println(messages.ReturnRespErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
 }
