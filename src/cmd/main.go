@@ -10,20 +10,31 @@ import (
 	"log"
 )
 
+const (
+	host      = "127.0.0.1"
+	port      = 5432
+	dbName    = "url-shortening-service"
+	user      = "postgres"
+	password  = "tayitkan"
+	sslmode   = "disable"
+	secretKey = "2GcQCe7SuKxbaA3NSMBy8ztBPbfDsXJ4"
+	devMode   = false
+)
+
 func main() {
 
 	helper.InitConf()
 
 	conInfo := helper.PgConnectionInfo{
-		Host:     "127.0.0.1",
-		Port:     5432,
-		Database: "url-shortening-service",
-		Username: "postgres",
-		Password: "tayitkan",
-		SSLMode:  "disable",
+		Host:     host,
+		Port:     port,
+		Database: dbName,
+		Username: user,
+		Password: password,
+		SSLMode:  sslmode,
 	}
 
-	helper.Conf.Auth = auth.NewAuth("2GcQCe7SuKxbaA3NSMBy8ztBPbfDsXJ4", false)
+	helper.Conf.Auth = auth.NewAuth(secretKey, devMode)
 
 	db, err := helper.NewPgSqlxDbHandle(conInfo, 10)
 	if err != nil {

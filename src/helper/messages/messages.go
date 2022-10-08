@@ -1,5 +1,11 @@
 package messages
 
+const FreeAccountType = "free"
+const PremiumAccountType = "premium"
+
+const FreeAccountShorteningUrlLimit = 1
+const PremiumAccountShorteningUrlLimit = 10
+
 const SuccessTrue = true
 const SuccessFalse = false
 
@@ -32,3 +38,15 @@ const GetLongUrlSuccessMessage = "get long url successfully"
 const UsrLimitErrorMessage = "user limit error"
 
 const BodyParseErrorMessage = "body parse error"
+
+const CreateTokenErrorMessage = "create token error"
+
+const SetLogJwtErrorMessage = "set log jwt error"
+
+const BodyValidateErrorMessage = "body validate error"
+
+const BadDataMessage = "bad data"
+
+const PasswordHashingErrorMessage = "password hashing error"
+
+const UrlDoesNotExistsErrorMessage = "url does not exist"

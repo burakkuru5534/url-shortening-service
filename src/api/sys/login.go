@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"github.com/burakkuru5534/src/auth"
 	"github.com/burakkuru5534/src/helper"
+	"github.com/burakkuru5534/src/helper/messages"
+	"github.com/burakkuru5534/src/helper/queries"
 	"github.com/burakkuru5534/src/model"
 	"log"
 	"net/http"
@@ -17,20 +19,20 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	err := helper.BodyToJsonReq(r, &loginInfo)
 	if err != nil {
-		log.Println("Login body to json error: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.BodyParseErrorMessage, err)
+		http.Error(w, messages.BodyParseErrorMessage, http.StatusBadRequest)
 		return
 	}
 
-	qs := "select id, email, password from usr where  email = $1 and is_active"
+	qs := queries.LoginQuery
 	err = helper.App.DB.QueryRowx(qs, loginInfo.Email).Scan(&loginData.UserID, &loginData.UserEmail, &loginData.UpassFromDb)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Println("Login user not found: ", err)
-			http.Error(w, "{\"error\": \"Bad request\"}", http.StatusBadRequest)
+			log.Println(messages.UserLoginUserDoesNotExistErrorMessage, err)
+			http.Error(w, messages.UserLoginUserDoesNotExistErrorMessage, http.StatusBadRequest)
 		} else {
-			log.Println("Login user query error: ", err)
-			http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+			log.Println(messages.UserLoginErrorMessage, err)
+			http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -38,15 +40,15 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	// compare password hashes
 	loginResult := helper.CheckPass(*loginData.UpassFromDb, loginInfo.Password)
 	if !loginResult {
-		log.Println("Login password not match: ", err)
-		http.Error(w, "{\"error\": \"Bad request\"}", http.StatusBadRequest)
+		log.Println(messages.UserLoginWrongPasswordErrorMessage, err)
+		http.Error(w, messages.UserLoginWrongPasswordErrorMessage, http.StatusBadRequest)
 		return
 	}
 
 	tc, err := auth.NewTokenClaimsForUser(loginData.UserID, loginData.UserEmail)
 	if err != nil {
-		log.Println("create new token claims for usr error ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.CreateTokenErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		return
 	}
 
@@ -61,15 +63,21 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	_, err = helper.SetLogJwt(respStruct.AccessToken, loginData.UserID)
 	if err != nil {
-		log.Println("set log jwt error: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.SetLogJwtErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		return
 	}
 
-	err = json.NewEncoder(w).Encode(respStruct)
+	resp := model.RespData{
+		Success: messages.SuccessTrue,
+		Message: messages.UserLoginSuccessMessage,
+		Data:    respStruct,
+	}
+
+	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
-		log.Println("return resp: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.ReturnRespErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		return
 	}
 

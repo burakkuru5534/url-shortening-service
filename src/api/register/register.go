@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/burakkuru5534/src/helper"
+	"github.com/burakkuru5534/src/helper/messages"
+	"github.com/burakkuru5534/src/helper/queries"
 	"github.com/burakkuru5534/src/model"
 	"github.com/go-playground/validator/v10"
 	"log"
@@ -19,47 +21,57 @@ func NewRegister(w http.ResponseWriter, r *http.Request) {
 
 	err := helper.BodyToJsonReq(r, &data)
 	if err != nil {
-		log.Println("Register body to json error: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.BodyParseErrorMessage, err)
+		http.Error(w, messages.BodyParseErrorMessage, http.StatusBadRequest)
 		return
 	}
 
 	validate = validator.New()
 	err = validate.Struct(data)
 	if err != nil {
-		log.Println("Register body validate error: ", err)
-		http.Error(w, "{\"error\": \"Bad request\"}", http.StatusBadRequest)
+		log.Println(messages.BodyValidateErrorMessage, err)
+		http.Error(w, messages.BadDataMessage, http.StatusBadRequest)
 		return
 	}
 
 	data.Password, err = helper.HashPasswd(data.Password)
 	if err != nil {
-		log.Println("hash password error: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.PasswordHashingErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		return
 	}
 
-	err = createSysUsr(data)
+	err = createUsr(data)
 	if err != nil {
-		log.Println("create sysusr error: ", err)
-		http.Error(w, "{\"error\": \"server error\"}", http.StatusInternalServerError)
+		log.Println(messages.UserCreateErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
 		return
 	}
 
-	resp := fmt.Sprintf("Usr %s created:", data.Email)
-	json.NewEncoder(w).Encode(resp)
+	resp := model.RespData{
+		Success: messages.SuccessTrue,
+		Message: messages.UserCreateSuccessMessage,
+		Data:    fmt.Sprintf("Usr %s created:", data.Email),
+	}
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		log.Println(messages.ReturnRespErrorMessage, err)
+		http.Error(w, messages.ServerErrorMessage, http.StatusInternalServerError)
+		return
+	}
 }
 
-func createSysUsr(data *model.RegisterRequest) error {
+func createUsr(data *model.RegisterRequest) error {
 
 	var err error
-	shorteningUrlLimit := 1
-	accountType := "free"
+	shorteningUrlLimit := messages.FreeAccountShorteningUrlLimit
+	accountType := messages.FreeAccountType
 	if data.IsPremium {
-		shorteningUrlLimit = 10
-		accountType = "premium"
+		shorteningUrlLimit = messages.PremiumAccountShorteningUrlLimit
+		accountType = messages.PremiumAccountType
 	}
-	qs := "insert into usr ( password, email, shortening_url_limit, account_type, zlins_dttm) values ($1, $2, $3, $4, current_timestamp) returning id"
+	qs := queries.CreateUsrQuery
 	err = helper.App.DB.QueryRowx(qs, data.Password, data.Email, shorteningUrlLimit, accountType).Scan(&data.ID)
 	if err != nil {
 		return err

@@ -13,7 +13,6 @@ type Auth struct {
 	devMode bool
 }
 
-// todo: bu fonksiyon ve struct aslında gereksiz !
 func NewAuth(secret string, devMode bool) *Auth {
 	return &Auth{jwtauth.New("HS256", []byte(secret), nil), devMode}
 }

@@ -70,7 +70,6 @@ func ProjectAuthenticator(next http.Handler) http.Handler {
 
 		tc := auth.TokenClaimsFromRequest(r)
 
-		//TODO : if token.expire time.now ve db.isinvalid
 		var isInvalid bool
 		err = helper.App.DB.QueryRow("select is_invalid from logjwt where jwt = $1", jwtauth.TokenFromHeader(r)).Scan(&isInvalid)
 		if err != nil {
